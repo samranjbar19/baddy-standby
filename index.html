@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Badminton Standby</title>
+  <title>ShuttleQ Standby</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
@@ -19,16 +19,16 @@
 
   <div class="max-w-md mx-auto space-y-4">
     
-    <!-- Top Header -->
+    <!-- Header -->
     <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
       <div>
         <h1 class="text-lg font-black tracking-tight text-zinc-100 flex items-center gap-2">
-          🏸 Standby & Dropouts
+          🏸 ShuttleQ Standby
         </h1>
-        <p class="text-[11px] text-zinc-400">Live roster dropouts & auto-replacement</p>
+        <p class="text-[11px] text-zinc-400">Live cancellations & waiting queue</p>
       </div>
-      <button onclick="toggleModal('adminModal')" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition">
-        ⚙️ Admin
+      <button onclick="requestAdminAccess()" class="px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs font-semibold text-zinc-300 hover:text-white active:scale-95 transition flex items-center gap-1.5">
+        🔒 Admin
       </button>
     </div>
 
@@ -49,12 +49,12 @@
         <div id="uncoveredCount" class="text-base font-black text-rose-400 mt-0.5">0</div>
       </div>
       <div class="p-2.5 bg-zinc-900/60 border border-zinc-800 rounded-xl">
-        <div class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Waiting in Queue</div>
+        <div class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">In Line (Queue)</div>
         <div id="inLineCount" class="text-base font-black text-amber-400 mt-0.5">0</div>
       </div>
     </div>
 
-    <!-- Section 1: Cancellations List -->
+    <!-- Section 1: Cancellations -->
     <div>
       <div class="flex items-center justify-between mb-2 px-1">
         <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">1. Cancellations</h2>
@@ -66,7 +66,7 @@
     <!-- Section 2: Waiting List -->
     <div>
       <div class="flex items-center justify-between mb-2 px-1">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">2. Waiting List & Standby</h2>
+        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">2. Waiting List & Allocations</h2>
         <span id="waitlistBadge" class="text-[10px] text-zinc-500 font-medium">0 Total</span>
       </div>
       <div id="waitingList" class="space-y-2"></div>
@@ -104,36 +104,52 @@
     </div>
   </div>
 
+  <!-- Password Prompt Modal -->
+  <div id="passwordModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-xs rounded-3xl p-5 space-y-3.5 text-center">
+      <div class="w-10 h-10 mx-auto rounded-2xl bg-zinc-800 flex items-center justify-center text-lg">🔒</div>
+      <h3 class="font-bold text-sm text-zinc-100">Admin Authentication</h3>
+      <p class="text-xs text-zinc-400">Enter your host PIN to unlock settings:</p>
+      <input type="password" id="adminPinInput" pattern="[0-9]*" inputmode="numeric" placeholder="Enter PIN" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center text-sm font-mono tracking-widest text-zinc-100 outline-none">
+      <div class="flex gap-2">
+        <button onclick="toggleModal('passwordModal')" class="flex-1 py-2.5 bg-zinc-800 text-zinc-400 rounded-xl text-xs font-semibold">Cancel</button>
+        <button onclick="verifyAdminPin()" class="flex-1 py-2.5 bg-emerald-500 text-zinc-950 rounded-xl text-xs font-bold">Unlock</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Admin Controls Modal -->
   <div id="adminModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
     <div class="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center">
-        <h3 class="font-bold text-base text-zinc-100">⚙️ Admin Setup</h3>
+        <h3 class="font-bold text-base text-zinc-100">⚙️ Admin Controls</h3>
         <button onclick="toggleModal('adminModal')" class="text-zinc-500 hover:text-white text-lg">✕</button>
       </div>
       
       <div>
-        <label class="block text-xs font-semibold text-zinc-400 mb-1">1. Master Approved Club Pool (Name, @handle)</label>
-        <textarea id="adminMasterInput" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-300 font-mono" placeholder="Alex Liu, @alexliu&#10;David Miller, @davidm&#10;Jason Wu, @jasonwu&#10;Chris Lee, @chrislee"></textarea>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">1. Master Club Pool (Name, @handle)</label>
+        <textarea id="adminMasterInput" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-300 font-mono" placeholder="Alex Liu, @alexliu&#10;David Miller, @davidm&#10;Jason Wu, @jasonwu"></textarea>
       </div>
 
       <div>
-        <label class="block text-xs font-semibold text-zinc-400 mb-1">2. Today's Confirmed Players (One name per line)</label>
-        <textarea id="adminRosterInput" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-300 font-mono" placeholder="Alex Liu&#10;David Miller&#10;Sarah Jenkins&#10;Kevin Tan"></textarea>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">2. Today's Confirmed Players (One per line)</label>
+        <textarea id="adminRosterInput" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-300 font-mono" placeholder="Alex Liu&#10;David Miller&#10;Sarah Jenkins"></textarea>
       </div>
 
       <div class="flex gap-2">
         <button onclick="saveAdminData()" class="flex-1 py-3 bg-emerald-500 active:scale-95 transition rounded-xl font-bold text-xs uppercase text-zinc-950">
-          Save & Update
+          Save Changes
         </button>
         <button onclick="resetAllData()" class="px-4 py-3 bg-rose-500/20 text-rose-400 border border-rose-500/30 active:scale-95 transition rounded-xl font-bold text-xs uppercase">
-          Reset All
+          Reset Board
         </button>
       </div>
     </div>
   </div>
 
   <script>
+    // Configuration
+    const ADMIN_PIN = "1234"; // Host PIN
     const BOT_TOKEN = '8478737437:AAGJYCL0gNf-hGrFD4PBfOe4KzJBYPrl2_Y';
     const GROUP_ID = -1004331264988;
     const TOPIC_ID = 3;
@@ -147,8 +163,8 @@
       }
     }
 
-    // Local Storage State
-    let state = JSON.parse(localStorage.getItem('baddy_live_state')) || {
+    // Local State
+    let state = JSON.parse(localStorage.getItem('shuttleq_live_data')) || {
       masterMembers: [
         { name: "Alex Liu", username: "alexliu" },
         { name: "David Miller", username: "davidm" },
@@ -160,12 +176,12 @@
         { name: "Saeed R.", username: "SaeedRanjbar" }
       ],
       registered: ["Alex Liu", "David Miller", "Sarah Jenkins", "Kevin Tan"],
-      cancellations: [], // { id, name, coveredBy, time }
-      waitlist: []       // { id, name, username, replacing, paid, time }
+      cancellations: [],
+      waitlist: []
     };
 
     function saveState() {
-      localStorage.setItem('baddy_live_state', JSON.stringify(state));
+      localStorage.setItem('shuttleq_live_data', JSON.stringify(state));
       render();
     }
 
@@ -173,6 +189,24 @@
       const el = document.getElementById(id);
       el.classList.toggle('hidden');
       el.classList.toggle('flex');
+    }
+
+    // Admin Auth
+    function requestAdminAccess() {
+      document.getElementById('adminPinInput').value = '';
+      toggleModal('passwordModal');
+    }
+
+    function verifyAdminPin() {
+      const input = document.getElementById('adminPinInput').value;
+      if (input === ADMIN_PIN) {
+        toggleModal('passwordModal');
+        document.getElementById('adminMasterInput').value = state.masterMembers.map(m => `${m.name}, @${m.username}`).join('\n');
+        document.getElementById('adminRosterInput').value = state.registered.join('\n');
+        toggleModal('adminModal');
+      } else {
+        alert("Incorrect Admin PIN.");
+      }
     }
 
     async function sendTopicAlert(text) {
@@ -214,7 +248,7 @@
       const eligible = state.masterMembers.filter(m => !activePlayers.includes(m.name) && !inWaitlist.includes(m.name));
 
       if (eligible.length === 0) {
-        alert("All approved members are either playing or already in the waitlist.");
+        alert("All approved members are either playing or in the waitlist.");
         return;
       }
 
@@ -233,7 +267,6 @@
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
-      // Check if someone is already waiting in queue
       const nextInQueue = state.waitlist.find(w => !w.replacing);
 
       if (nextInQueue) {
@@ -264,7 +297,6 @@
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
-      // Check if there is an open vacancy waiting to be filled
       const openVacancy = state.cancellations.find(c => !c.coveredBy);
 
       if (openVacancy) {
@@ -302,7 +334,7 @@
       document.getElementById('cancellationBadge').innerText = `${state.cancellations.length} Total`;
       document.getElementById('waitlistBadge').innerText = `${state.waitlist.length} Total`;
 
-      // Render Cancellations
+      // Cancellations
       if (state.cancellations.length === 0) {
         cancellationsList.innerHTML = `<div class="text-xs text-zinc-600 italic text-center py-5 border border-dashed border-zinc-900 rounded-2xl">No cancellations yet.</div>`;
       } else {
@@ -332,7 +364,7 @@
         }).join('');
       }
 
-      // Render Waitlist
+      // Waitlist
       if (state.waitlist.length === 0) {
         waitingList.innerHTML = `<div class="text-xs text-zinc-600 italic text-center py-5 border border-dashed border-zinc-900 rounded-2xl">Waitlist is empty.</div>`;
       } else {
@@ -405,10 +437,6 @@
         toggleModal('adminModal');
       }
     }
-
-    // Populate admin textareas on load
-    document.getElementById('adminMasterInput').value = state.masterMembers.map(m => `${m.name}, @${m.username}`).join('\n');
-    document.getElementById('adminRosterInput').value = state.registered.join('\n');
 
     render();
   </script>
