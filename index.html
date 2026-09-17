@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Standby Board</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body class="bg-zinc-950 text-white p-4 font-sans min-h-screen select-none">
+
+  <div class="max-w-md mx-auto space-y-4">
+    <div class="border-b border-zinc-800 pb-3">
+      <h2 class="text-xl font-bold text-zinc-100">🏸 Standby & Dropouts</h2>
+      <p class="text-xs text-zinc-400">Cancel your spot or claim an open vacancy</p>
+    </div>
+
+    <!-- Cancel Spot Card -->
+    <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
+      <label class="block text-xs font-semibold text-rose-400 mb-2 uppercase tracking-wide">1. Cancel Confirmed Spot</label>
+      <select id="playerToCancel" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-zinc-200 mb-3 outline-none">
+        <option value="Alex Liu">Alex Liu</option>
+        <option value="David Miller">David Miller</option>
+        <option value="Sarah Jenkins">Sarah Jenkins</option>
+        <option value="Kevin Tan">Kevin Tan</option>
+      </select>
+      <button onclick="handleCancel()" class="w-full py-3 bg-rose-500/20 text-rose-400 border border-rose-500/40 rounded-xl font-bold text-xs uppercase active:scale-95 transition">
+        ✕ Confirm Cancellation
+      </button>
+    </div>
+
+    <!-- Claim Spot / Waitlist Card -->
+    <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
+      <label class="block text-xs font-semibold text-amber-400 mb-2 uppercase tracking-wide">2. Claim Spot / Join Waitlist</label>
+      <select id="playerJoining" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-zinc-200 mb-3 outline-none">
+        <option value="Jason Wu|jasonwu">Jason Wu (@jasonwu)</option>
+        <option value="Chris Lee|chrislee">Chris Lee (@chrislee)</option>
+        <option value="Marcus Lim|marcusl">Marcus Lim (@marcusl)</option>
+      </select>
+      <button onclick="handleWaitlist()" class="w-full py-3 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded-xl font-bold text-xs uppercase active:scale-95 transition">
+        ⚡ Claim Spot / Enter Queue
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+    }
+
+    function handleCancel() {
+      const player = document.getElementById('playerToCancel').value;
+      tg.sendData(JSON.stringify({
+        action: 'CANCEL_SPOT',
+        canceledPlayer: player
+      }));
+    }
+
+    function handleWaitlist() {
+      const [playerName, username] = document.getElementById('playerJoining').value.split('|');
+      tg.sendData(JSON.stringify({
+        action: 'JOIN_WAITLIST',
+        playerName,
+        username
+      }));
+    }
+  </script>
+</body>
+</html>
