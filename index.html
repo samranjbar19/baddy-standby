@@ -12,8 +12,11 @@
   <div class="max-w-md mx-auto space-y-4">
     <div class="border-b border-zinc-800 pb-3">
       <h2 class="text-xl font-bold text-zinc-100">🏸 Standby & Dropouts</h2>
-      <p class="text-xs text-zinc-400">Cancel your spot or claim an open vacancy</p>
+      <p class="text-xs text-zinc-400">Manage dropouts and claim open spots directly</p>
     </div>
+
+    <!-- Status Banner -->
+    <div id="statusToast" class="hidden p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold text-center"></div>
 
     <!-- Cancel Spot Card -->
     <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
@@ -24,7 +27,7 @@
         <option value="Sarah Jenkins">Sarah Jenkins</option>
         <option value="Kevin Tan">Kevin Tan</option>
       </select>
-      <button onclick="handleCancel()" class="w-full py-3 bg-rose-500/20 text-rose-400 border border-rose-500/40 rounded-xl font-bold text-xs uppercase active:scale-95 transition">
+      <button id="cancelBtn" onclick="handleCancel()" class="w-full py-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 rounded-xl font-bold text-xs uppercase active:scale-95 transition">
         ✕ Confirm Cancellation
       </button>
     </div>
@@ -37,34 +40,79 @@
         <option value="Chris Lee|chrislee">Chris Lee (@chrislee)</option>
         <option value="Marcus Lim|marcusl">Marcus Lim (@marcusl)</option>
       </select>
-      <button onclick="handleWaitlist()" class="w-full py-3 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded-xl font-bold text-xs uppercase active:scale-95 transition">
+      <button id="claimBtn" onclick="handleWaitlist()" class="w-full py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-xl font-bold text-xs uppercase active:scale-95 transition">
         ⚡ Claim Spot / Enter Queue
       </button>
     </div>
   </div>
 
   <script>
+    const BOT_TOKEN = '8478737437:AAGJYCL0gNf-hGrFD4PBfOe4KzJBYPrl2_Y';
+    const GROUP_ID = -1004331264988;
+    const TOPIC_ID = 3;
+
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.ready();
       tg.expand();
     }
 
-    function handleCancel() {
-      const player = document.getElementById('playerToCancel').value;
-      tg.sendData(JSON.stringify({
-        action: 'CANCEL_SPOT',
-        canceledPlayer: player
-      }));
+    // Direct Telegram API call straight from the web browser
+    async function sendTelegramAlert(htmlMessage) {
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: GROUP_ID,
+            message_thread_id: TOPIC_ID,
+            text: htmlMessage,
+            parse_mode: 'HTML'
+          })
+        });
+        return await res.json();
+      } catch (err) {
+        console.error("Failed to dispatch alert:", err);
+      }
     }
 
-    function handleWaitlist() {
-      const [playerName, username] = document.getElementById('playerJoining').value.split('|');
-      tg.sendData(JSON.stringify({
-        action: 'JOIN_WAITLIST',
-        playerName,
-        username
-      }));
+    function showStatus(text) {
+      const toast = document.getElementById('statusToast');
+      toast.innerText = text;
+      toast.classList.remove('hidden');
+    }
+
+    async function handleCancel() {
+      const btn = document.getElementById('cancelBtn');
+      const player = document.getElementById('playerToCancel').value;
+      
+      btn.disabled = true;
+      btn.innerText = "Processing...";
+
+      const message = `🚨 <b>Spot Available!</b>\n<b>${player}</b> has cancelled their spot for the upcoming session.\nFirst to claim takes the spot!`;
+      await sendTelegramAlert(message);
+
+      showStatus(`✓ Cancellation posted to #Waiting`);
+      setTimeout(() => {
+        if (tg) tg.close();
+      }, 1000);
+    }
+
+    async function handleWaitlist() {
+      const btn = document.getElementById('claimBtn');
+      const [name, username] = document.getElementById('playerJoining').value.split('|');
+
+      btn.disabled = true;
+      btn.innerText = "Processing...";
+
+      const tag = username ? `@${username}` : name;
+      const message = `🏸 <b>Spot Covered!</b>\n${tag} has claimed an open spot!\n⚠️ <i>Please settle payment with the host.</i>`;
+      await sendTelegramAlert(message);
+
+      showStatus(`✓ Spot claim posted to #Waiting`);
+      setTimeout(() => {
+        if (tg) tg.close();
+      }, 1000);
     }
   </script>
 </body>
