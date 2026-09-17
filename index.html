@@ -2,47 +2,134 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Standby Board</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Badminton Standby</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      overscroll-behavior-y: none;
+    }
+  </style>
 </head>
-<body class="bg-zinc-950 text-white p-4 font-sans min-h-screen select-none">
+<body class="bg-zinc-950 text-white p-4 font-sans min-h-screen pb-24 select-none">
 
   <div class="max-w-md mx-auto space-y-4">
-    <div class="border-b border-zinc-800 pb-3">
-      <h2 class="text-xl font-bold text-zinc-100">🏸 Standby & Dropouts</h2>
-      <p class="text-xs text-zinc-400">Manage dropouts and claim open spots directly</p>
-    </div>
-
-    <!-- Status Banner -->
-    <div id="statusToast" class="hidden p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold text-center"></div>
-
-    <!-- Cancel Spot Card -->
-    <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
-      <label class="block text-xs font-semibold text-rose-400 mb-2 uppercase tracking-wide">1. Cancel Confirmed Spot</label>
-      <select id="playerToCancel" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-zinc-200 mb-3 outline-none">
-        <option value="Alex Liu">Alex Liu</option>
-        <option value="David Miller">David Miller</option>
-        <option value="Sarah Jenkins">Sarah Jenkins</option>
-        <option value="Kevin Tan">Kevin Tan</option>
-      </select>
-      <button id="cancelBtn" onclick="handleCancel()" class="w-full py-3 bg-rose-500/20 hover:bg-rose-500/30 text-rose-400 border border-rose-500/40 rounded-xl font-bold text-xs uppercase active:scale-95 transition">
-        ✕ Confirm Cancellation
+    
+    <!-- Top Header -->
+    <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+      <div>
+        <h1 class="text-lg font-black tracking-tight text-zinc-100 flex items-center gap-2">
+          🏸 Standby & Dropouts
+        </h1>
+        <p class="text-[11px] text-zinc-400">Live roster dropouts & auto-replacement</p>
+      </div>
+      <button onclick="toggleModal('adminModal')" class="p-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white active:scale-95 transition">
+        ⚙️ Admin
       </button>
     </div>
 
-    <!-- Claim Spot / Waitlist Card -->
-    <div class="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl">
-      <label class="block text-xs font-semibold text-amber-400 mb-2 uppercase tracking-wide">2. Claim Spot / Join Waitlist</label>
-      <select id="playerJoining" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-zinc-200 mb-3 outline-none">
-        <option value="Jason Wu|jasonwu">Jason Wu (@jasonwu)</option>
-        <option value="Chris Lee|chrislee">Chris Lee (@chrislee)</option>
-        <option value="Marcus Lim|marcusl">Marcus Lim (@marcusl)</option>
-      </select>
-      <button id="claimBtn" onclick="handleWaitlist()" class="w-full py-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-xl font-bold text-xs uppercase active:scale-95 transition">
-        ⚡ Claim Spot / Enter Queue
+    <!-- Quick Actions -->
+    <div class="grid grid-cols-2 gap-2">
+      <button onclick="openCancelModal()" class="py-3 px-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 font-bold text-xs uppercase tracking-wide active:scale-95 transition flex items-center justify-center gap-1.5 shadow-lg shadow-rose-950/20">
+        <span>✕ Cancel My Spot</span>
       </button>
+      <button onclick="openWaitlistModal()" class="py-3 px-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs uppercase tracking-wide active:scale-95 transition flex items-center justify-center gap-1.5 shadow-lg shadow-amber-950/20">
+        <span>⚡ Join Waitlist</span>
+      </button>
+    </div>
+
+    <!-- Status Ticker -->
+    <div class="grid grid-cols-2 gap-2 text-center text-xs">
+      <div class="p-2.5 bg-zinc-900/60 border border-zinc-800 rounded-xl">
+        <div class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Uncovered Vacancies</div>
+        <div id="uncoveredCount" class="text-base font-black text-rose-400 mt-0.5">0</div>
+      </div>
+      <div class="p-2.5 bg-zinc-900/60 border border-zinc-800 rounded-xl">
+        <div class="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Waiting in Queue</div>
+        <div id="inLineCount" class="text-base font-black text-amber-400 mt-0.5">0</div>
+      </div>
+    </div>
+
+    <!-- Section 1: Cancellations List -->
+    <div>
+      <div class="flex items-center justify-between mb-2 px-1">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">1. Cancellations</h2>
+        <span id="cancellationBadge" class="text-[10px] text-zinc-500 font-medium">0 Total</span>
+      </div>
+      <div id="cancellationsList" class="space-y-2"></div>
+    </div>
+
+    <!-- Section 2: Waiting List -->
+    <div>
+      <div class="flex items-center justify-between mb-2 px-1">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">2. Waiting List & Standby</h2>
+        <span id="waitlistBadge" class="text-[10px] text-zinc-500 font-medium">0 Total</span>
+      </div>
+      <div id="waitingList" class="space-y-2"></div>
+    </div>
+
+  </div>
+
+  <!-- Cancel Spot Modal -->
+  <div id="cancelModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-end sm:items-center justify-center p-4 z-50">
+    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-3xl p-5 space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-zinc-100">Cancel Your Spot</h3>
+        <button onclick="toggleModal('cancelModal')" class="text-zinc-500 hover:text-white text-lg">✕</button>
+      </div>
+      <p class="text-xs text-zinc-400">Select your name from today's registered players to surrender your spot:</p>
+      <select id="cancelSelect" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-zinc-200 outline-none"></select>
+      <button onclick="executeCancel()" class="w-full py-3.5 bg-rose-500 hover:bg-rose-600 active:scale-95 transition rounded-xl font-bold text-xs uppercase text-white">
+        Confirm Drop Out
+      </button>
+    </div>
+  </div>
+
+  <!-- Join Waitlist Modal -->
+  <div id="waitlistModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-end sm:items-center justify-center p-4 z-50">
+    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-sm rounded-3xl p-5 space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-zinc-100">Join Waiting List</h3>
+        <button onclick="toggleModal('waitlistModal')" class="text-zinc-500 hover:text-white text-lg">✕</button>
+      </div>
+      <p class="text-xs text-zinc-400">Select your name from the approved member pool:</p>
+      <select id="waitlistSelect" class="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-sm text-zinc-200 outline-none"></select>
+      <button onclick="executeJoinWaitlist()" class="w-full py-3.5 bg-amber-500 hover:bg-amber-600 active:scale-95 transition rounded-xl font-bold text-xs uppercase text-zinc-950">
+        Enter Waiting List
+      </button>
+    </div>
+  </div>
+
+  <!-- Admin Controls Modal -->
+  <div id="adminModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-base text-zinc-100">⚙️ Admin Setup</h3>
+        <button onclick="toggleModal('adminModal')" class="text-zinc-500 hover:text-white text-lg">✕</button>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">1. Master Approved Club Pool (Name, @handle)</label>
+        <textarea id="adminMasterInput" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-300 font-mono" placeholder="Alex Liu, @alexliu&#10;David Miller, @davidm&#10;Jason Wu, @jasonwu&#10;Chris Lee, @chrislee"></textarea>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-zinc-400 mb-1">2. Today's Confirmed Players (One name per line)</label>
+        <textarea id="adminRosterInput" rows="4" class="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-xs text-zinc-300 font-mono" placeholder="Alex Liu&#10;David Miller&#10;Sarah Jenkins&#10;Kevin Tan"></textarea>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="saveAdminData()" class="flex-1 py-3 bg-emerald-500 active:scale-95 transition rounded-xl font-bold text-xs uppercase text-zinc-950">
+          Save & Update
+        </button>
+        <button onclick="resetAllData()" class="px-4 py-3 bg-rose-500/20 text-rose-400 border border-rose-500/30 active:scale-95 transition rounded-xl font-bold text-xs uppercase">
+          Reset All
+        </button>
+      </div>
     </div>
   </div>
 
@@ -55,65 +142,275 @@
     if (tg) {
       tg.ready();
       tg.expand();
+      if (tg.isVersionAtLeast && tg.isVersionAtLeast('7.7')) {
+        tg.disableVerticalSwipes();
+      }
     }
 
-    // Direct Telegram API call straight from the web browser
-    async function sendTelegramAlert(htmlMessage) {
+    // Local Storage State
+    let state = JSON.parse(localStorage.getItem('baddy_live_state')) || {
+      masterMembers: [
+        { name: "Alex Liu", username: "alexliu" },
+        { name: "David Miller", username: "davidm" },
+        { name: "Sarah Jenkins", username: "sarahj" },
+        { name: "Kevin Tan", username: "kevint" },
+        { name: "Jason Wu", username: "jasonwu" },
+        { name: "Chris Lee", username: "chrislee" },
+        { name: "Marcus Lim", username: "marcusl" },
+        { name: "Saeed R.", username: "SaeedRanjbar" }
+      ],
+      registered: ["Alex Liu", "David Miller", "Sarah Jenkins", "Kevin Tan"],
+      cancellations: [], // { id, name, coveredBy, time }
+      waitlist: []       // { id, name, username, replacing, paid, time }
+    };
+
+    function saveState() {
+      localStorage.setItem('baddy_live_state', JSON.stringify(state));
+      render();
+    }
+
+    function toggleModal(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('hidden');
+      el.classList.toggle('flex');
+    }
+
+    async function sendTopicAlert(text) {
       try {
-        const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             chat_id: GROUP_ID,
             message_thread_id: TOPIC_ID,
-            text: htmlMessage,
+            text: text,
             parse_mode: 'HTML'
           })
         });
-        return await res.json();
       } catch (err) {
-        console.error("Failed to dispatch alert:", err);
+        console.error("Alert failed:", err);
       }
     }
 
-    function showStatus(text) {
-      const toast = document.getElementById('statusToast');
-      toast.innerText = text;
-      toast.classList.remove('hidden');
+    function openCancelModal() {
+      const select = document.getElementById('cancelSelect');
+      const canceledNames = state.cancellations.map(c => c.name);
+      const eligible = state.registered.filter(name => !canceledNames.includes(name));
+
+      if (eligible.length === 0) {
+        alert("All registered players have already cancelled.");
+        return;
+      }
+
+      select.innerHTML = eligible.map(n => `<option value="${n}">${n}</option>`).join('');
+      toggleModal('cancelModal');
     }
 
-    async function handleCancel() {
-      const btn = document.getElementById('cancelBtn');
-      const player = document.getElementById('playerToCancel').value;
+    function openWaitlistModal() {
+      const select = document.getElementById('waitlistSelect');
+      const activePlayers = state.registered.filter(n => !state.cancellations.some(c => c.name === n));
+      const inWaitlist = state.waitlist.map(w => w.name);
       
-      btn.disabled = true;
-      btn.innerText = "Processing...";
+      const eligible = state.masterMembers.filter(m => !activePlayers.includes(m.name) && !inWaitlist.includes(m.name));
 
-      const message = `🚨 <b>Spot Available!</b>\n<b>${player}</b> has cancelled their spot for the upcoming session.\nFirst to claim takes the spot!`;
-      await sendTelegramAlert(message);
+      if (eligible.length === 0) {
+        alert("All approved members are either playing or already in the waitlist.");
+        return;
+      }
 
-      showStatus(`✓ Cancellation posted to #Waiting`);
-      setTimeout(() => {
-        if (tg) tg.close();
-      }, 1000);
+      select.innerHTML = eligible.map(m => `<option value="${m.name}">${m.name} (${m.username ? '@' + m.username : 'no handle'})</option>`).join('');
+      toggleModal('waitlistModal');
     }
 
-    async function handleWaitlist() {
-      const btn = document.getElementById('claimBtn');
-      const [name, username] = document.getElementById('playerJoining').value.split('|');
+    async function executeCancel() {
+      const name = document.getElementById('cancelSelect').value;
+      if (!name) return;
 
-      btn.disabled = true;
-      btn.innerText = "Processing...";
+      const newCancel = {
+        id: Date.now(),
+        name: name,
+        coveredBy: null,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
 
-      const tag = username ? `@${username}` : name;
-      const message = `🏸 <b>Spot Covered!</b>\n${tag} has claimed an open spot!\n⚠️ <i>Please settle payment with the host.</i>`;
-      await sendTelegramAlert(message);
+      // Check if someone is already waiting in queue
+      const nextInQueue = state.waitlist.find(w => !w.replacing);
 
-      showStatus(`✓ Spot claim posted to #Waiting`);
-      setTimeout(() => {
-        if (tg) tg.close();
-      }, 1000);
+      if (nextInQueue) {
+        newCancel.coveredBy = nextInQueue.name;
+        nextInQueue.replacing = name;
+        const tag = nextInQueue.username ? `@${nextInQueue.username}` : nextInQueue.name;
+        await sendTopicAlert(`🏸 <b>Spot Covered!</b>\n${tag} has taken <b>${name}</b>'s spot!\n⚠️ <i>Please settle payment with the host.</i>`);
+      } else {
+        await sendTopicAlert(`🚨 <b>Spot Available!</b>\n<b>${name}</b> has cancelled their spot.\nTap the board to claim it!`);
+      }
+
+      state.cancellations.push(newCancel);
+      toggleModal('cancelModal');
+      saveState();
     }
+
+    async function executeJoinWaitlist() {
+      const name = document.getElementById('waitlistSelect').value;
+      if (!name) return;
+
+      const member = state.masterMembers.find(m => m.name === name) || { name, username: '' };
+      const newWaitlist = {
+        id: Date.now(),
+        name: member.name,
+        username: member.username,
+        replacing: null,
+        paid: false,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      // Check if there is an open vacancy waiting to be filled
+      const openVacancy = state.cancellations.find(c => !c.coveredBy);
+
+      if (openVacancy) {
+        openVacancy.coveredBy = newWaitlist.name;
+        newWaitlist.replacing = openVacancy.name;
+        const tag = newWaitlist.username ? `@${newWaitlist.username}` : newWaitlist.name;
+        await sendTopicAlert(`🏸 <b>Spot Covered!</b>\n${tag} has taken <b>${openVacancy.name}</b>'s spot!\n⚠️ <i>Please settle payment with the host.</i>`);
+      } else {
+        const tag = newWaitlist.username ? `@${newWaitlist.username}` : newWaitlist.name;
+        await sendTopicAlert(`⏳ <b>Waitlist Entry:</b>\n${tag} has entered the waiting list.`);
+      }
+
+      state.waitlist.push(newWaitlist);
+      toggleModal('waitlistModal');
+      saveState();
+    }
+
+    function togglePaid(id) {
+      const item = state.waitlist.find(w => w.id === id);
+      if (item) {
+        item.paid = !item.paid;
+        saveState();
+      }
+    }
+
+    function render() {
+      const cancellationsList = document.getElementById('cancellationsList');
+      const waitingList = document.getElementById('waitingList');
+
+      const uncovered = state.cancellations.filter(c => !c.coveredBy).length;
+      const inLine = state.waitlist.filter(w => !w.replacing).length;
+
+      document.getElementById('uncoveredCount').innerText = uncovered;
+      document.getElementById('inLineCount').innerText = inLine;
+      document.getElementById('cancellationBadge').innerText = `${state.cancellations.length} Total`;
+      document.getElementById('waitlistBadge').innerText = `${state.waitlist.length} Total`;
+
+      // Render Cancellations
+      if (state.cancellations.length === 0) {
+        cancellationsList.innerHTML = `<div class="text-xs text-zinc-600 italic text-center py-5 border border-dashed border-zinc-900 rounded-2xl">No cancellations yet.</div>`;
+      } else {
+        cancellationsList.innerHTML = state.cancellations.map(c => {
+          const isCovered = !!c.coveredBy;
+          return `
+            <div class="flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
+              isCovered ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-rose-950/20 border-rose-500/30'
+            }">
+              <div>
+                <div class="font-bold text-sm ${isCovered ? 'text-zinc-200' : 'text-rose-200'}">${c.name}</div>
+                <div class="text-[10px] text-zinc-500">${c.time}</div>
+              </div>
+              <div>
+                ${
+                  isCovered
+                    ? `<span class="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 flex items-center gap-1">
+                        ✓ Replaced by ${c.coveredBy}
+                       </span>`
+                    : `<span class="text-xs font-semibold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 animate-pulse">
+                        Open Vacancy
+                       </span>`
+                }
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Render Waitlist
+      if (state.waitlist.length === 0) {
+        waitingList.innerHTML = `<div class="text-xs text-zinc-600 italic text-center py-5 border border-dashed border-zinc-900 rounded-2xl">Waitlist is empty.</div>`;
+      } else {
+        waitingList.innerHTML = state.waitlist.map((w, index) => {
+          const isAssigned = !!w.replacing;
+          return `
+            <div class="flex items-center justify-between p-3.5 rounded-2xl border transition-all ${
+              isAssigned ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-zinc-900/60 border-zinc-800'
+            }">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                  isAssigned ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                }">
+                  ${isAssigned ? '✓' : '#' + (index + 1)}
+                </div>
+                <div>
+                  <div class="font-bold text-sm text-zinc-200 flex items-center gap-1.5">
+                    ${w.name}
+                    ${w.username ? `<span class="text-[10px] text-zinc-500">@${w.username}</span>` : ''}
+                  </div>
+                  <div class="text-[10px] text-zinc-500">
+                    ${isAssigned ? `➔ Took ${w.replacing}'s spot` : `Queued at ${w.time}`}
+                  </div>
+                </div>
+              </div>
+              <div>
+                ${
+                  isAssigned
+                    ? `<button onclick="togglePaid(${w.id})" class="text-xs font-bold px-2.5 py-1 rounded-lg border transition active:scale-95 ${
+                        w.paid ? 'bg-emerald-500 text-zinc-950 border-emerald-400' : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                      }">
+                        ${w.paid ? 'PAID' : 'UNPAID'}
+                       </button>`
+                    : `<span class="text-xs text-amber-400/80 font-medium">In Queue</span>`
+                }
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function saveAdminData() {
+      const masterRaw = document.getElementById('adminMasterInput').value.trim();
+      const rosterRaw = document.getElementById('adminRosterInput').value.trim();
+
+      if (masterRaw) {
+        state.masterMembers = masterRaw.split('\n').filter(Boolean).map(line => {
+          const parts = line.split(',');
+          return {
+            name: parts[0]?.trim() || '',
+            username: parts[1]?.replace('@', '').trim() || ''
+          };
+        });
+      }
+
+      if (rosterRaw) {
+        state.registered = rosterRaw.split('\n').map(l => l.trim()).filter(Boolean);
+      }
+
+      toggleModal('adminModal');
+      saveState();
+    }
+
+    function resetAllData() {
+      if (confirm("Reset current cancellations and waitlist records?")) {
+        state.cancellations = [];
+        state.waitlist = [];
+        saveState();
+        toggleModal('adminModal');
+      }
+    }
+
+    // Populate admin textareas on load
+    document.getElementById('adminMasterInput').value = state.masterMembers.map(m => `${m.name}, @${m.username}`).join('\n');
+    document.getElementById('adminRosterInput').value = state.registered.join('\n');
+
+    render();
   </script>
 </body>
 </html>
